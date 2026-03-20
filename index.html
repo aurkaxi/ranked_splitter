@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Salami Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --base:      #1e1e2e;
+    --mantle:    #181825;
+    --crust:     #11111b;
+    --surface0:  #313244;
+    --surface1:  #45475a;
+    --surface2:  #585b70;
+    --overlay0:  #6c7086;
+    --overlay1:  #7f849c;
+    --overlay2:  #9399b2;
+    --subtext0:  #a6adc8;
+    --subtext1:  #bac2de;
+    --text:      #cdd6f4;
+    --lavender:  #b4befe;
+    --blue:      #89b4fa;
+    --sapphire:  #74c7ec;
+    --green:     #a6e3a1;
+    --yellow:    #f9e2af;
+    --peach:     #fab387;
+    --red:       #f38ba8;
+    --mauve:     #cba6f7;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--base);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse 80% 50% at 20% -10%, rgba(203,166,247,.07) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 80% 110%, rgba(137,180,250,.06) 0%, transparent 55%);
+    pointer-events: none; z-index: 0;
+  }
+
+  .app { max-width: 680px; margin: 0 auto; padding: 2rem 1.25rem 6rem; position: relative; z-index: 1; }
+
+  /* Header */
+  header { margin-bottom: 2.5rem; }
+  .title { font-size: 2rem; font-weight: 800; color: var(--text); line-height: 1; margin-bottom: 1.5rem; }
+  .title span { color: var(--mauve); }
+
+  .balance-block {
+    background: var(--mantle); border: 1px solid var(--surface0); border-radius: 14px;
+    padding: 1.1rem 1.25rem; display: flex; align-items: center; gap: .75rem; transition: border-color .2s;
+  }
+  .balance-block:focus-within { border-color: var(--mauve); }
+  .balance-label { font-size: .7rem; font-weight: 600; letter-spacing: .15em; text-transform: uppercase; color: var(--overlay1); white-space: nowrap; }
+  .balance-symbol { font-family: 'DM Mono', monospace; font-size: 1.4rem; color: var(--mauve); }
+  #totalBalance {
+    font-family: 'DM Mono', monospace; font-size: 1.5rem; font-weight: 500;
+    background: transparent; border: none; outline: none; color: var(--text); width: 100%; caret-color: var(--mauve);
+  }
+  #totalBalance::placeholder { color: var(--surface2); }
+
+  /* Controls */
+  .controls-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; gap: .75rem; flex-wrap: wrap; }
+  .section-label { font-size: .7rem; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; color: var(--overlay1); }
+  .ranked-badge {
+    font-family: 'DM Mono', monospace; font-size: .63rem; font-weight: 500;
+    color: var(--mauve); background: rgba(203,166,247,.1); border: 1px solid rgba(203,166,247,.2);
+    border-radius: 6px; padding: .22rem .65rem; letter-spacing: .04em;
+  }
+
+  /* Cards */
+  .categories { display: flex; flex-direction: column; gap: .75rem; }
+
+  .card {
+    background: var(--mantle); border: 1px solid var(--surface0); border-radius: 14px;
+    padding: 1rem 1.1rem; transition: border-color .2s, box-shadow .2s, opacity .2s;
+    position: relative; overflow: hidden;
+  }
+  .card::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: var(--rank-color, var(--surface1)); border-radius: 3px 0 0 3px; transition: background .3s;
+  }
+  .card.drag-over { border-color: var(--mauve); box-shadow: 0 0 0 1px var(--mauve); }
+  .card.dragging  { opacity: .4; }
+
+  .card-top { display: flex; align-items: center; gap: .6rem; margin-bottom: .75rem; }
+  .drag-handle { cursor: grab; color: var(--overlay0); display: flex; align-items: center; padding: .15rem; transition: color .15s; flex-shrink: 0; }
+  .drag-handle:hover { color: var(--overlay2); }
+
+  .rank-badge {
+    font-family: 'DM Mono', monospace; font-size: .65rem; font-weight: 500;
+    background: var(--surface0); border-radius: 5px; padding: .15rem .4rem;
+    min-width: 1.6rem; text-align: center; flex-shrink: 0;
+  }
+  .card-name {
+    font-family: 'Syne', sans-serif; font-size: .95rem; font-weight: 600;
+    background: transparent; border: none; outline: none; color: var(--text); width: 100%; caret-color: var(--lavender);
+  }
+  .card-name::placeholder { color: var(--surface2); }
+  .card-actions { display: flex; align-items: center; gap: .3rem; flex-shrink: 0; }
+  .icon-btn {
+    background: none; border: none; cursor: pointer; color: var(--overlay0);
+    display: flex; align-items: center; justify-content: center; padding: .25rem;
+    border-radius: 6px; transition: color .15s, background .15s;
+  }
+  .icon-btn:hover { color: var(--text); background: var(--surface0); }
+  .icon-btn.del:hover { color: var(--red); background: rgba(243,139,168,.1); }
+
+  /* Card body */
+  .card-body { display: flex; gap: .6rem; align-items: flex-start; }
+  .input-mode-toggle { display: flex; flex-direction: column; gap: .25rem; flex-shrink: 0; padding-top: .1rem; }
+  .mode-btn {
+    font-family: 'DM Mono', monospace; font-size: .6rem; font-weight: 500;
+    background: var(--surface0); border: 1px solid transparent; color: var(--overlay1);
+    border-radius: 5px; padding: .2rem .45rem; cursor: pointer; transition: all .15s; white-space: nowrap;
+  }
+  .mode-btn.active { background: rgba(203,166,247,.12); border-color: var(--mauve); color: var(--mauve); }
+  .card-input-area { flex: 1; min-width: 0; }
+
+  input.count-input {
+    font-family: 'DM Mono', monospace; font-size: 1.1rem;
+    background: var(--surface0); border: 1px solid transparent; border-radius: 8px;
+    color: var(--text); padding: .45rem .7rem; width: 100%; outline: none;
+    transition: border-color .15s; caret-color: var(--lavender);
+  }
+  input.count-input:focus { border-color: var(--lavender); }
+  input.count-input::placeholder { color: var(--overlay0); }
+
+  /* Names list */
+  .names-list { display: flex; flex-direction: column; gap: .3rem; }
+
+  .name-row { display: flex; align-items: center; gap: .35rem; animation: rowIn .15s ease; }
+  @keyframes rowIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
+
+  .name-field {
+    font-family: 'DM Mono', monospace; font-size: .82rem;
+    background: var(--surface0); border: 1px solid transparent; border-radius: 7px;
+    color: var(--text); padding: .36rem .6rem; flex: 1; min-width: 0; outline: none;
+    transition: border-color .15s; caret-color: var(--lavender);
+  }
+  .name-field:focus { border-color: var(--lavender); }
+  .name-field::placeholder { color: var(--overlay0); }
+
+  .name-pill {
+    font-family: 'DM Mono', monospace; font-size: .7rem; font-weight: 500;
+    color: var(--green); background: rgba(166,227,161,.1); border: 1px solid rgba(166,227,161,.2);
+    border-radius: 6px; padding: .2rem .5rem; white-space: nowrap; flex-shrink: 0;
+    opacity: 0; transform: scale(.9); transition: opacity .2s, transform .2s;
+    pointer-events: none;
+  }
+  .name-pill.visible { opacity: 1; transform: scale(1); pointer-events: auto; }
+
+  .rm-btn {
+    background: none; border: none; cursor: pointer; color: var(--overlay0);
+    display: flex; align-items: center; padding: .2rem; border-radius: 5px;
+    transition: color .15s, background .15s; flex-shrink: 0;
+  }
+  .rm-btn:hover { color: var(--red); background: rgba(243,139,168,.1); }
+
+  .add-name-btn {
+    font-family: 'DM Mono', monospace; font-size: .68rem;
+    background: none; border: 1px dashed var(--surface1); color: var(--overlay1);
+    border-radius: 7px; padding: .28rem .65rem; cursor: pointer; transition: all .15s; margin-top: .1rem; width: 100%; text-align: left;
+  }
+  .add-name-btn:hover { border-color: var(--overlay1); color: var(--subtext0); background: var(--surface0); }
+
+  /* Result block */
+  .card-result { margin-top: .85rem; padding-top: .85rem; border-top: 1px solid var(--surface0); display: none; }
+  .card-result.visible { display: block; animation: fadeSlide .25s ease; }
+  @keyframes fadeSlide { from { opacity:0; transform:translateY(-5px); } to { opacity:1; transform:translateY(0); } }
+
+  .result-summary { display: flex; align-items: baseline; gap: .75rem; flex-wrap: wrap; }
+  .result-pp { font-family: 'DM Mono', monospace; font-size: 1.05rem; font-weight: 500; color: var(--green); }
+  .result-total { font-family: 'DM Mono', monospace; font-size: .78rem; color: var(--subtext0); }
+  .result-weight { font-family: 'DM Mono', monospace; font-size: .65rem; color: var(--overlay1); margin-left: auto; }
+
+  .warn { font-size: .65rem; color: var(--yellow); font-family: 'DM Mono', monospace; display: flex; align-items: center; gap: .3rem; margin-top: .45rem; }
+
+  /* Bottom bar */
+  .bottom-bar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: rgba(24,24,37,.93); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    border-top: 1px solid var(--surface0); padding: .85rem 1.25rem;
+    display: flex; align-items: center; gap: .55rem; justify-content: center; z-index: 100;
+  }
+  .bar-btn {
+    font-family: 'Syne', sans-serif; font-size: .72rem; font-weight: 600; letter-spacing: .06em;
+    background: var(--surface0); border: 1px solid var(--surface1); color: var(--subtext1);
+    border-radius: 9px; padding: .6rem .95rem; cursor: pointer;
+    display: flex; align-items: center; gap: .4rem; transition: all .15s; white-space: nowrap;
+  }
+  .bar-btn:hover { background: var(--surface1); color: var(--text); }
+  .bar-btn.danger:hover { background: rgba(243,139,168,.1); border-color: var(--red); color: var(--red); }
+  .calc-btn {
+    font-family: 'Syne', sans-serif; font-size: .8rem; font-weight: 700; letter-spacing: .1em;
+    text-transform: uppercase; background: var(--mauve); border: none; color: var(--crust);
+    border-radius: 9px; padding: .65rem 1.6rem; cursor: pointer; transition: all .15s; flex: 1; max-width: 200px;
+  }
+  .calc-btn:hover { background: var(--lavender); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(203,166,247,.3); }
+  .calc-btn:active { transform: translateY(0); }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(17,17,27,.75);
+    backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center;
+    z-index: 300; opacity: 0; pointer-events: none; transition: opacity .2s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal {
+    background: var(--mantle); border: 1px solid var(--surface1); border-radius: 16px;
+    padding: 1.75rem 1.5rem 1.25rem; width: min(360px, calc(100vw - 2rem));
+    transform: translateY(10px); transition: transform .2s;
+  }
+  .modal-overlay.open .modal { transform: translateY(0); }
+  .modal h3 { font-size: 1rem; font-weight: 700; margin-bottom: .5rem; }
+  .modal p { font-size: .8rem; color: var(--subtext0); line-height: 1.5; margin-bottom: 1.25rem; }
+  .modal-actions { display: flex; gap: .6rem; justify-content: flex-end; }
+  .modal-cancel {
+    font-family: 'Syne', sans-serif; font-size: .75rem; font-weight: 600;
+    background: var(--surface0); border: 1px solid var(--surface1); color: var(--subtext1);
+    border-radius: 8px; padding: .5rem 1rem; cursor: pointer; transition: all .15s;
+  }
+  .modal-cancel:hover { background: var(--surface1); color: var(--text); }
+  .modal-confirm {
+    font-family: 'Syne', sans-serif; font-size: .75rem; font-weight: 700;
+    background: var(--red); border: none; color: var(--crust);
+    border-radius: 8px; padding: .5rem 1rem; cursor: pointer; transition: filter .15s;
+  }
+  .modal-confirm:hover { filter: brightness(1.1); }
+
+  /* Toast */
+  #toast {
+    position: fixed; bottom: 5.5rem; left: 50%;
+    transform: translateX(-50%) translateY(8px);
+    background: var(--surface1); color: var(--text);
+    font-family: 'DM Mono', monospace; font-size: .75rem;
+    border-radius: 8px; padding: .5rem 1rem;
+    opacity: 0; pointer-events: none; transition: all .25s; white-space: nowrap; z-index: 200;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--mantle); }
+  ::-webkit-scrollbar-thumb { background: var(--surface1); border-radius: 3px; }
+
+  @media (max-width: 480px) {
+    .title { font-size: 1.6rem; }
+    .calc-btn { max-width: none; flex: 2; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <h1 class="title">Salami<span>Calculator</span></h1>
+    <div class="balance-block">
+      <span class="balance-label">Budget</span>
+      <span class="balance-symbol">৳</span>
+      <input type="number" id="totalBalance" placeholder="0" min="0">
+    </div>
+  </header>
+
+  <div class="controls-bar">
+    <span class="section-label">Categories</span>
+    <span class="ranked-badge">triangular ranked</span>
+  </div>
+
+  <div class="categories" id="catList"></div>
+</div>
+
+<div class="bottom-bar">
+  <button class="bar-btn" onclick="addCat()">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    Add
+  </button>
+  <button class="bar-btn danger" onclick="openClearModal()">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+    Clear
+  </button>
+  <button class="calc-btn" onclick="calculate()">Calculate</button>
+</div>
+
+<div class="modal-overlay" id="clearModal">
+  <div class="modal">
+    <h3>Clear everything?</h3>
+    <p>Deletes all categories and resets the balance. Cannot be undone.</p>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeClearModal()">Cancel</button>
+      <button class="modal-confirm" onclick="doClear()">Clear all</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ─── Constants ────────────────────────────────────────
+const STORE = 'salami_calc';
+const RANK_COLORS = ['var(--yellow)','var(--peach)','var(--green)','var(--sapphire)','var(--lavender)','var(--mauve)'];
+const mkDefaults = () => [
+  { id: uid(), name: 'মেহেদিতে নাম লিখা জুনিয়র', imode: 'count', count: 0, names: [''] },
+  { id: uid(), name: 'ক্রাশ জুনিয়র',  imode: 'count', count: 0, names: [''] },
+  { id: uid(), name: 'সন্তানতুল্য জুনিয়র',       imode: 'count', count: 0, names: [''] },
+  { id: uid(), name: 'ক্লাবের জুনিয়র', imode: 'count', count: 0, names: [''] },
+  { id: uid(), name: 'cse জুনিয়র', imode: 'count', count: 0, names: [''] },
+  { id: uid(), name: 'ডুয়ো ছবি আছে এমন জুনিয়র',       imode: 'count', count: 0, names: [''] },
+];
+
+// ─── State ────────────────────────────────────────────
+let S = { balance: 0, cats: mkDefaults() };
+let R = {}; // results keyed by cat id
+let dragFrom = null;
+
+// ─── Persist ──────────────────────────────────────────
+function save() { localStorage.setItem(STORE, JSON.stringify(S)); }
+function load() {
+  try {
+    const p = JSON.parse(localStorage.getItem(STORE) || 'null');
+    if (!p) return;
+    if (p.cats) p.cats = p.cats.map(c => {
+      // Migrate old string names
+      if (typeof c.names === 'string') {
+        const a = c.names.split(/[\n,]+/).map(x=>x.trim()).filter(Boolean);
+        c.names = a.length ? a : [''];
+      }
+      if (!Array.isArray(c.names)||!c.names.length) c.names=[''];
+      if (!c.imode) c.imode = c.mode||'count';
+      delete c.mode;
+      return c;
+    });
+    Object.assign(S, p);
+  } catch(e){}
+}
+
+// ─── Helpers ──────────────────────────────────────────
+function uid() { return Math.random().toString(36).slice(2,9); }
+function rc(i) { return RANK_COLORS[Math.min(i,RANK_COLORS.length-1)]; }
+function validNames(c) { return (c.names||[]).map(n=>n.trim()).filter(Boolean); }
+function pcount(c) {
+  return c.imode==='count' ? Math.max(0,parseInt(c.count)||0) : validNames(c).length;
+}
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function toast(msg) {
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('show');
+  clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),2200);
+}
+
+// ─── Modal ────────────────────────────────────────────
+function openClearModal() { document.getElementById('clearModal').classList.add('open'); }
+function closeClearModal() { document.getElementById('clearModal').classList.remove('open'); }
+document.getElementById('clearModal').addEventListener('click', e => { if(e.target===e.currentTarget) closeClearModal(); });
+function doClear() {
+  closeClearModal();
+  S.balance=0; S.cats=[]; R={};
+  save();
+  document.getElementById('totalBalance').value='';
+  renderAll(); toast('Cleared');
+}
+
+// ─── Render all ───────────────────────────────────────
+function renderAll() {
+  const list=document.getElementById('catList');
+  list.innerHTML='';
+  S.cats.forEach((_,i) => list.appendChild(mkCard(i)));
+}
+
+function replaceCard(id) {
+  const i=S.cats.findIndex(c=>c.id===id); if(i<0) return;
+  const list=document.getElementById('catList');
+  const old=list.children[i];
+  const neu=mkCard(i);
+  if(old) list.replaceChild(neu,old); else list.appendChild(neu);
+}
+
+// ─── Card builder ─────────────────────────────────────
+function mkCard(idx) {
+  const cat=S.cats[idx];
+  const color=rc(idx);
+  const res=R[cat.id]||null;
+
+  const card=document.createElement('div');
+  card.className='card'; card.dataset.id=cat.id;
+  card.style.setProperty('--rank-color',color);
+  card.draggable=true;
+
+  // Top row
+  const top=document.createElement('div'); top.className='card-top';
+
+  const handle=document.createElement('span'); handle.className='drag-handle'; handle.title='Drag to reorder';
+  handle.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="5" width="16" height="2" rx="1"/><rect x="4" y="11" width="16" height="2" rx="1"/><rect x="4" y="17" width="16" height="2" rx="1"/></svg>`;
+
+  const badge=document.createElement('span'); badge.className='rank-badge';
+  badge.style.color=color; badge.textContent='#'+(idx+1);
+
+  const nameEl=document.createElement('input'); nameEl.className='card-name';
+  nameEl.type='text'; nameEl.value=cat.name; nameEl.placeholder='Group name'; nameEl.spellcheck=false;
+  nameEl.addEventListener('input',()=>{ cat.name=nameEl.value; save(); });
+
+  const acts=document.createElement('div'); acts.className='card-actions';
+  const mkIconBtn=(title,svg,cls)=>{ const b=document.createElement('button'); b.className='icon-btn'+(cls?' '+cls:''); b.title=title; b.innerHTML=svg; return b; };
+  const upBtn  =mkIconBtn('Move up',  `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>`);
+  const dnBtn  =mkIconBtn('Move down',`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`);
+  const delBtn =mkIconBtn('Delete',   `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,'del');
+  upBtn.addEventListener('click',()=>moveCat(cat.id,-1));
+  dnBtn.addEventListener('click',()=>moveCat(cat.id,1));
+  delBtn.addEventListener('click',()=>delCat(cat.id));
+  acts.append(upBtn,dnBtn,delBtn);
+  top.append(handle,badge,nameEl,acts);
+
+  // Body
+  const body=document.createElement('div'); body.className='card-body';
+
+  const modeToggle=document.createElement('div'); modeToggle.className='input-mode-toggle';
+  const b123=document.createElement('button'); b123.className='mode-btn'+(cat.imode==='count'?' active':''); b123.textContent='count';
+  const babc=document.createElement('button'); babc.className='mode-btn'+(cat.imode==='names'?' active':''); babc.textContent='list';
+  b123.addEventListener('click',()=>setImode(cat.id,'count'));
+  babc.addEventListener('click',()=>setImode(cat.id,'names'));
+  modeToggle.append(b123,babc);
+
+  const inputArea=document.createElement('div'); inputArea.className='card-input-area';
+
+  if(cat.imode==='count') {
+    const ci=document.createElement('input'); ci.className='count-input'; ci.type='number'; ci.min='0';
+    ci.value=cat.count||''; ci.placeholder='No. of people';
+    ci.addEventListener('input',()=>{ cat.count=parseInt(ci.value)||0; save(); });
+    ci.addEventListener('keydown',e=>{ if(e.key==='-'||e.key==='.') e.preventDefault(); });
+    inputArea.appendChild(ci);
+  } else {
+    inputArea.appendChild(mkNamesList(cat,res));
+  }
+
+  body.append(modeToggle,inputArea);
+
+  // Result block (count mode / skip warning)
+  const rb=document.createElement('div'); rb.className='card-result'; rb.id='res-'+cat.id;
+  if(res) { rb.innerHTML=mkResHTML(cat,res); rb.classList.add('visible'); }
+
+  card.append(top,body,rb);
+
+  // Drag & Drop
+  card.addEventListener('dragstart',e=>{ dragFrom=S.cats.findIndex(c=>c.id===cat.id); card.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; });
+  card.addEventListener('dragend',()=>{ card.classList.remove('dragging'); document.querySelectorAll('.card').forEach(c=>c.classList.remove('drag-over')); });
+  card.addEventListener('dragover',e=>{ e.preventDefault(); card.classList.add('drag-over'); });
+  card.addEventListener('dragleave',()=>card.classList.remove('drag-over'));
+  card.addEventListener('drop',e=>{
+    e.preventDefault(); card.classList.remove('drag-over');
+    const to=S.cats.findIndex(c=>c.id===cat.id);
+    if(dragFrom===null||dragFrom===to) return;
+    const [m]=S.cats.splice(dragFrom,1); S.cats.splice(to,0,m);
+    dragFrom=null; R={}; save(); renderAll();
+  });
+
+  return card;
+}
+
+// ─── Names list ───────────────────────────────────────
+function mkNamesList(cat,res) {
+  if(!Array.isArray(cat.names)||!cat.names.length) cat.names=[''];
+  const wrap=document.createElement('div'); wrap.className='names-list';
+  cat.names.forEach((_,ni)=>wrap.appendChild(mkNameRow(cat,ni,res)));
+
+  const addBtn=document.createElement('button'); addBtn.className='add-name-btn'; addBtn.textContent='+ add person';
+  addBtn.addEventListener('click',()=>{
+    cat.names.push(''); R={}; save(); replaceCard(cat.id);
+    setTimeout(()=>{ const fs=document.querySelectorAll(`.name-field[data-catid="${cat.id}"]`); if(fs.length) fs[fs.length-1].focus(); },30);
+  });
+  wrap.appendChild(addBtn);
+  return wrap;
+}
+
+function mkNameRow(cat,ni,res) {
+  const pp = res && !res.skipped ? res.pp : null;
+  const name = cat.names[ni]||'';
+  const showPill = pp!==null && name.trim()!=='';
+
+  const row=document.createElement('div'); row.className='name-row';
+
+  const field=document.createElement('input'); field.className='name-field'; field.dataset.catid=cat.id;
+  field.type='text'; field.value=name; field.placeholder='Name';
+  field.addEventListener('input',()=>{ cat.names[ni]=field.value; R={}; save(); updatePill(cat.id,ni,null); });
+  field.addEventListener('keydown',e=>{
+    if(e.key==='Enter') {
+      e.preventDefault();
+      cat.names.splice(ni+1,0,''); R={}; save(); replaceCard(cat.id);
+      setTimeout(()=>{ const fs=document.querySelectorAll(`.name-field[data-catid="${cat.id}"]`); if(fs[ni+1]) fs[ni+1].focus(); },30);
+    } else if(e.key==='Backspace'&&field.value===''&&cat.names.length>1) {
+      e.preventDefault();
+      cat.names.splice(ni,1); R={}; save(); replaceCard(cat.id);
+      setTimeout(()=>{ const fs=document.querySelectorAll(`.name-field[data-catid="${cat.id}"]`); const fi=Math.min(ni,fs.length-1); if(fs[fi]) fs[fi].focus(); },30);
+    }
+  });
+
+  const pill=document.createElement('span'); pill.className='name-pill'; pill.dataset.catid=cat.id; pill.dataset.ni=ni;
+  if(showPill) { pill.textContent='৳'+pp.toLocaleString('en-IN'); pill.classList.add('visible'); }
+
+  const rm=document.createElement('button'); rm.className='rm-btn'; rm.title='Remove';
+  rm.innerHTML=`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+  rm.addEventListener('click',()=>{ if(cat.names.length<=1){cat.names=['']; }else{cat.names.splice(ni,1);} R={}; save(); replaceCard(cat.id); });
+
+  row.append(field,pill,rm);
+  return row;
+}
+
+function updatePill(catId,ni,pp) {
+  // Hide pill when user edits a field (result is now stale)
+  const pills=document.querySelectorAll(`.name-pill[data-catid="${catId}"][data-ni="${ni}"]`);
+  pills.forEach(p=>{ if(pp===null){p.classList.remove('visible');} else {p.textContent='৳'+pp.toLocaleString('en-IN'); p.classList.add('visible');} });
+}
+
+// ─── Result HTML ──────────────────────────────────────
+const warnSVG=`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
+
+function mkResHTML(cat,res) {
+  if(res.skipped) return `<div class="warn">${warnSVG} Skipped — no people in this group</div>`;
+  let h=`<div class="result-summary">
+    <span class="result-pp">৳${res.pp.toLocaleString('en-IN')} <span style="font-size:.63rem;color:var(--subtext0)">/ person</span></span>
+    <span class="result-total">Group total ৳${(res.pp*res.count).toLocaleString('en-IN')}</span>`;
+  h+=`<span class="result-weight">weight ${res.weight}/${res.tw}</span>`;
+  h+='</div>';
+  if(res.pp===0) h+=`<div class="warn" style="margin-top:.4rem">${warnSVG} Rounds to ৳0 — balance too low for this group</div>`;
+  return h;
+}
+
+// ─── Actions ──────────────────────────────────────────
+function addCat() {
+  S.cats.push({id:uid(),name:'New Group',imode:'count',count:0,names:['']});
+  R={}; save(); renderAll();
+  setTimeout(()=>{ const ns=document.querySelectorAll('.card-name'); if(ns.length) ns[ns.length-1].focus(); },50);
+}
+function delCat(id) { S.cats=S.cats.filter(c=>c.id!==id); delete R[id]; save(); renderAll(); }
+function moveCat(id,dir) {
+  const i=S.cats.findIndex(c=>c.id===id), j=i+dir;
+  if(j<0||j>=S.cats.length) return;
+  [S.cats[i],S.cats[j]]=[S.cats[j],S.cats[i]];
+  R={}; save(); renderAll();
+}
+function setImode(id,mode) {
+  const c=S.cats.find(x=>x.id===id); if(!c||c.imode===mode) return;
+  c.imode=mode; R={}; save(); replaceCard(id);
+}
+
+// ─── Calculate ────────────────────────────────────────
+function calculate() {
+  S.balance=parseFloat(document.getElementById('totalBalance').value)||0; save();
+  if(S.balance<=0) { toast('Enter a total balance first'); return; }
+
+  const active=S.cats.filter(c=>pcount(c)>0);
+  const skipped=S.cats.filter(c=>pcount(c)===0);
+  if(!active.length) { toast('Add at least one group with people'); return; }
+
+  R={};
+  const N=active.length, total=S.balance;
+  const tw=N*(N+1)/2;
+  active.forEach((c,ri)=>{ const w=N-ri, share=Math.floor(total*w/tw), cnt=pcount(c); R[c.id]={pp:Math.floor(share/cnt),count:cnt,weight:w,tw}; });
+  skipped.forEach(c=>{ R[c.id]={skipped:true}; });
+
+  // Apply results to DOM
+  S.cats.forEach(cat=>{
+    const res=R[cat.id]; if(!res) return;
+
+    if(cat.imode==='count') {
+      const el=document.getElementById('res-'+cat.id);
+      if(el) { el.innerHTML=mkResHTML(cat,res); el.classList.add('visible'); }
+    } else {
+      // Update name pills inline without full rebuild
+      const pills=document.querySelectorAll(`.name-pill[data-catid="${cat.id}"]`);
+      pills.forEach(p=>{
+        const ni=parseInt(p.dataset.ni);
+        const name=(cat.names[ni]||'').trim();
+        if(!res.skipped && name) { p.textContent='৳'+res.pp.toLocaleString('en-IN'); p.classList.add('visible'); }
+        else { p.classList.remove('visible'); }
+      });
+      // Show summary in result block too
+      const el=document.getElementById('res-'+cat.id);
+      if(el) { el.innerHTML=mkResHTML(cat,res); el.classList.add('visible'); }
+    }
+  });
+
+  toast('Done ✓');
+}
+
+// ─── Init ─────────────────────────────────────────────
+load();
+document.getElementById('totalBalance').value=S.balance||'';
+document.getElementById('totalBalance').addEventListener('input',()=>{ S.balance=parseFloat(document.getElementById('totalBalance').value)||0; save(); });
+renderAll();
+</script>
+</body>
+</html>
