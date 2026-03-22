@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Salami Calculator</title>
+<title>Balance Splitter</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -70,13 +70,53 @@
   #totalBalance::placeholder { color: var(--surface2); }
 
   /* Controls */
-  .controls-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; gap: .75rem; flex-wrap: wrap; }
+  .controls-bar { display: flex; flex-direction: column; gap: .65rem; margin-bottom: 1.25rem; }
+  .controls-row { display: flex; align-items: center; justify-content: space-between; gap: .75rem; flex-wrap: wrap; }
   .section-label { font-size: .7rem; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; color: var(--overlay1); }
-  .ranked-badge {
-    font-family: 'DM Mono', monospace; font-size: .63rem; font-weight: 500;
-    color: var(--mauve); background: rgba(203,166,247,.1); border: 1px solid rgba(203,166,247,.2);
-    border-radius: 6px; padding: .22rem .65rem; letter-spacing: .04em;
+  .controls-right { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; justify-content: flex-end; }
+  .round-toggle {
+    display: flex; background: var(--mantle); border: 1px solid var(--surface0); border-radius: 7px; overflow: hidden;
   }
+  .round-btn {
+    font-family: 'DM Mono', monospace; font-size: .63rem; font-weight: 500;
+    background: transparent; border: none; color: var(--overlay1);
+    padding: .3rem .7rem; cursor: pointer; transition: background .15s, color .15s; white-space: nowrap;
+  }
+  .round-btn.safe.active     { background: var(--surface0); color: var(--green); }
+  .round-btn.generous.active { background: var(--surface0); color: var(--peach); }
+  
+  /* Multiple selector */
+  .multiple-row {
+    display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+  }
+  .multiple-label {
+    font-family: 'DM Mono', monospace; font-size: .6rem; color: var(--overlay1);
+    white-space: nowrap; letter-spacing: .04em; flex-shrink: 0;
+  }
+  .multiple-btns {
+    display: flex; gap: .3rem; flex-wrap: wrap;
+  }
+  .mult-btn {
+    font-family: 'DM Mono', monospace; font-size: .65rem; font-weight: 500;
+    background: var(--mantle); border: 1px solid var(--surface0); color: var(--overlay1);
+    border-radius: 6px; padding: .25rem .55rem; cursor: pointer;
+    transition: all .15s; white-space: nowrap;
+  }
+  .mult-btn:hover { border-color: var(--surface2); color: var(--subtext1); background: var(--surface0); }
+  .mult-btn.active { background: rgba(249,226,175,.1); border-color: var(--yellow); color: var(--yellow); }
+  .summary-block {
+    margin-top: .65rem;
+    background: var(--mantle); border: 1px solid var(--surface0); border-radius: 12px;
+    padding: .75rem 1.25rem; display: none; flex-direction: column; gap: .4rem;
+    animation: fadeSlide .3s ease;
+  }
+  .summary-block.visible { display: flex; }
+  .summary-row { display: flex; align-items: center; justify-content: space-between; }
+  .summary-label { font-size: .72rem; font-weight: 600; letter-spacing: .08em; color: var(--subtext0); }
+  .summary-val { font-family: 'DM Mono', monospace; font-size: .95rem; font-weight: 500; color: var(--text); }
+  .summary-val.remaining { color: var(--green); }
+  .summary-val.short { color: var(--red); }
+  .summary-divider { height: 1px; background: var(--surface0); margin: .1rem 0; }
 
   /* Cards */
   .categories { display: flex; flex-direction: column; gap: .75rem; }
@@ -263,17 +303,47 @@
 
 <div class="app">
   <header>
-    <h1 class="title">Salami<span>Calculator</span></h1>
+    <h1 class="title">Balance<span>Split</span></h1>
     <div class="balance-block">
       <span class="balance-label">Budget</span>
       <span class="balance-symbol">৳</span>
       <input type="number" id="totalBalance" placeholder="0" min="0">
     </div>
+    <div class="summary-block" id="summaryBlock">
+      <div class="summary-row">
+        <span class="summary-label">Going out</span>
+        <span class="summary-val" id="sumOut"></span>
+      </div>
+      <div class="summary-divider"></div>
+      <div class="summary-row">
+        <span class="summary-label" id="sumDiffLabel"></span>
+        <span class="summary-val" id="sumDiff"></span>
+      </div>
+    </div>
   </header>
 
   <div class="controls-bar">
-    <span class="section-label">Categories</span>
-    <span class="ranked-badge">triangular ranked</span>
+    <div class="controls-row">
+      <span class="section-label">Categories</span>
+      <div class="controls-right">
+        <div class="round-toggle">
+          <button id="btnRoundDown" class="round-btn safe active" onclick="setRounding('down')">round down</button>
+          <button id="btnRoundUp"   class="round-btn generous"   onclick="setRounding('up')">round up</button>
+        </div>
+      </div>
+    </div>
+    <div class="multiple-row">
+      <span class="multiple-label">round to nearest</span>
+      <div class="multiple-btns" id="multipleBtns">
+        <button class="mult-btn active" data-val="5"    onclick="setMultiple(5)">5</button>
+        <button class="mult-btn"        data-val="10"   onclick="setMultiple(10)">10</button>
+        <button class="mult-btn"        data-val="50"   onclick="setMultiple(50)">50</button>
+        <button class="mult-btn"        data-val="100"  onclick="setMultiple(100)">100</button>
+        <button class="mult-btn"        data-val="200"  onclick="setMultiple(200)">200</button>
+        <button class="mult-btn"        data-val="500"  onclick="setMultiple(500)">500</button>
+        <button class="mult-btn"        data-val="1000" onclick="setMultiple(1000)">1000</button>
+      </div>
+    </div>
   </div>
 
   <div class="categories" id="catList"></div>
@@ -306,19 +376,16 @@
 
 <script>
 // ─── Constants ────────────────────────────────────────
-const STORE = 'salami_calc';
+const STORE = 'splitter_v2';
 const RANK_COLORS = ['var(--yellow)','var(--peach)','var(--green)','var(--sapphire)','var(--lavender)','var(--mauve)'];
 const mkDefaults = () => [
-  { id: uid(), name: 'মেহেদিতে নাম লিখা জুনিয়র', imode: 'count', count: 0, names: [''] },
-  { id: uid(), name: 'ক্রাশ জুনিয়র',  imode: 'count', count: 0, names: [''] },
-  { id: uid(), name: 'সন্তানতুল্য জুনিয়র',       imode: 'count', count: 0, names: [''] },
-  { id: uid(), name: 'ক্লাবের জুনিয়র', imode: 'count', count: 0, names: [''] },
-  { id: uid(), name: 'cse জুনিয়র', imode: 'count', count: 0, names: [''] },
-  { id: uid(), name: 'ডুয়ো ছবি আছে এমন জুনিয়র',       imode: 'count', count: 0, names: [''] },
+  { id: uid(), name: 'Champion',  imode: 'count', count: 0, names: [''], rounding: 'safe' },
+  { id: uid(), name: 'Runners Up',       imode: 'count', count: 0, names: [''], rounding: 'safe' },
+  { id: uid(), name: 'Honorable Mention', imode: 'count', count: 0, names: [''], rounding: 'safe' },
 ];
 
 // ─── State ────────────────────────────────────────────
-let S = { balance: 0, cats: mkDefaults() };
+let S = { balance: 0, rounding: 'up', multiple: 10, cats: mkDefaults() };
 let R = {}; // results keyed by cat id
 let dragFrom = null;
 
@@ -329,7 +396,6 @@ function load() {
     const p = JSON.parse(localStorage.getItem(STORE) || 'null');
     if (!p) return;
     if (p.cats) p.cats = p.cats.map(c => {
-      // Migrate old string names
       if (typeof c.names === 'string') {
         const a = c.names.split(/[\n,]+/).map(x=>x.trim()).filter(Boolean);
         c.names = a.length ? a : [''];
@@ -337,6 +403,7 @@ function load() {
       if (!Array.isArray(c.names)||!c.names.length) c.names=[''];
       if (!c.imode) c.imode = c.mode||'count';
       delete c.mode;
+      delete c.rounding;
       return c;
     });
     Object.assign(S, p);
@@ -359,6 +426,25 @@ function toast(msg) {
   clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),2200);
 }
 
+// ─── Rounding (global) ────────────────────────────────
+function setRounding(mode) {
+  S.rounding=mode; R={}; save();
+  document.getElementById('btnRoundDown').classList.toggle('active', mode==='down');
+  document.getElementById('btnRoundUp').classList.toggle('active',   mode==='up');
+  document.getElementById('summaryBlock').classList.remove('visible');
+}
+function setMultiple(val) {
+  S.multiple=val; R={}; save();
+  document.querySelectorAll('.mult-btn').forEach(b=>{
+    b.classList.toggle('active', parseInt(b.dataset.val)===val);
+  });
+  document.getElementById('summaryBlock').classList.remove('visible');
+}
+function r5(x) {
+  const m=S.multiple||10;
+  return S.rounding==='up' ? Math.ceil(x/m)*m : Math.floor(x/m)*m;
+}
+
 // ─── Modal ────────────────────────────────────────────
 function openClearModal() { document.getElementById('clearModal').classList.add('open'); }
 function closeClearModal() { document.getElementById('clearModal').classList.remove('open'); }
@@ -368,6 +454,7 @@ function doClear() {
   S.balance=0; S.cats=[]; R={};
   save();
   document.getElementById('totalBalance').value='';
+  document.getElementById('summaryBlock').classList.remove('visible');
   renderAll(); toast('Cleared');
 }
 
@@ -445,7 +532,7 @@ function mkCard(idx) {
 
   body.append(modeToggle,inputArea);
 
-  // Result block (count mode / skip warning)
+  // Result block
   const rb=document.createElement('div'); rb.className='card-result'; rb.id='res-'+cat.id;
   if(res) { rb.innerHTML=mkResHTML(cat,res); rb.classList.add('visible'); }
 
@@ -461,7 +548,9 @@ function mkCard(idx) {
     const to=S.cats.findIndex(c=>c.id===cat.id);
     if(dragFrom===null||dragFrom===to) return;
     const [m]=S.cats.splice(dragFrom,1); S.cats.splice(to,0,m);
-    dragFrom=null; R={}; save(); renderAll();
+    dragFrom=null; R={}; save();
+    document.getElementById('summaryBlock').classList.remove('visible');
+    renderAll();
   });
 
   return card;
@@ -526,10 +615,11 @@ const warnSVG=`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" strok
 
 function mkResHTML(cat,res) {
   if(res.skipped) return `<div class="warn">${warnSVG} Skipped — no people in this group</div>`;
+  const groupTotal = res.pp * res.count;
   let h=`<div class="result-summary">
     <span class="result-pp">৳${res.pp.toLocaleString('en-IN')} <span style="font-size:.63rem;color:var(--subtext0)">/ person</span></span>
-    <span class="result-total">Group total ৳${(res.pp*res.count).toLocaleString('en-IN')}</span>`;
-  h+=`<span class="result-weight">weight ${res.weight}/${res.tw}</span>`;
+    <span class="result-total">× ${res.count} = ৳${groupTotal.toLocaleString('en-IN')}</span>
+    <span class="result-weight">w ${res.weight}</span>`;
   h+='</div>';
   if(res.pp===0) h+=`<div class="warn" style="margin-top:.4rem">${warnSVG} Rounds to ৳0 — balance too low for this group</div>`;
   return h;
@@ -541,12 +631,12 @@ function addCat() {
   R={}; save(); renderAll();
   setTimeout(()=>{ const ns=document.querySelectorAll('.card-name'); if(ns.length) ns[ns.length-1].focus(); },50);
 }
-function delCat(id) { S.cats=S.cats.filter(c=>c.id!==id); delete R[id]; save(); renderAll(); }
+function delCat(id) { S.cats=S.cats.filter(c=>c.id!==id); delete R[id]; document.getElementById('summaryBlock').classList.remove('visible'); save(); renderAll(); }
 function moveCat(id,dir) {
   const i=S.cats.findIndex(c=>c.id===id), j=i+dir;
   if(j<0||j>=S.cats.length) return;
   [S.cats[i],S.cats[j]]=[S.cats[j],S.cats[i]];
-  R={}; save(); renderAll();
+  R={}; document.getElementById('summaryBlock').classList.remove('visible'); save(); renderAll();
 }
 function setImode(id,mode) {
   const c=S.cats.find(x=>x.id===id); if(!c||c.imode===mode) return;
@@ -564,19 +654,18 @@ function calculate() {
 
   R={};
   const N=active.length, total=S.balance;
-  const tw=N*(N+1)/2;
-  active.forEach((c,ri)=>{ const w=N-ri, share=Math.floor(total*w/tw), cnt=pcount(c); R[c.id]={pp:Math.floor(share/cnt),count:cnt,weight:w,tw}; });
+  const pool = active.reduce((acc,c,ri)=>acc+(N-ri)*pcount(c), 0);
+  const unit = total / pool;
+  active.forEach((c,ri)=>{ const w=N-ri, cnt=pcount(c), pp=r5(w*unit); R[c.id]={pp,count:cnt,weight:w,tw:N*(N+1)/2}; });
   skipped.forEach(c=>{ R[c.id]={skipped:true}; });
 
   // Apply results to DOM
   S.cats.forEach(cat=>{
     const res=R[cat.id]; if(!res) return;
-
     if(cat.imode==='count') {
       const el=document.getElementById('res-'+cat.id);
       if(el) { el.innerHTML=mkResHTML(cat,res); el.classList.add('visible'); }
     } else {
-      // Update name pills inline without full rebuild
       const pills=document.querySelectorAll(`.name-pill[data-catid="${cat.id}"]`);
       pills.forEach(p=>{
         const ni=parseInt(p.dataset.ni);
@@ -584,19 +673,40 @@ function calculate() {
         if(!res.skipped && name) { p.textContent='৳'+res.pp.toLocaleString('en-IN'); p.classList.add('visible'); }
         else { p.classList.remove('visible'); }
       });
-      // Show summary in result block too
       const el=document.getElementById('res-'+cat.id);
       if(el) { el.innerHTML=mkResHTML(cat,res); el.classList.add('visible'); }
     }
   });
 
-  toast('Done ✓');
+  // Summary block
+  const totalOut = active.reduce((acc,c)=>{ const r=R[c.id]; return r&&!r.skipped ? acc+r.pp*r.count : acc; },0);
+  const diff = total - totalOut;
+  document.getElementById('sumOut').textContent = '৳'+totalOut.toLocaleString('en-IN');
+  const diffEl  = document.getElementById('sumDiff');
+  const diffLbl = document.getElementById('sumDiffLabel');
+  if(diff >= 0) {
+    diffLbl.textContent = 'Stays in your pocket';
+    diffEl.textContent  = '৳'+diff.toLocaleString('en-IN');
+    diffEl.className    = 'summary-val remaining';
+  } else {
+    diffLbl.textContent = 'You will need extra';
+    diffEl.textContent  = '৳'+Math.abs(diff).toLocaleString('en-IN');
+    diffEl.className    = 'summary-val short';
+  }
+  document.getElementById('summaryBlock').classList.add('visible');
 }
 
 // ─── Init ─────────────────────────────────────────────
 load();
 document.getElementById('totalBalance').value=S.balance||'';
 document.getElementById('totalBalance').addEventListener('input',()=>{ S.balance=parseFloat(document.getElementById('totalBalance').value)||0; save(); });
+const _r=S.rounding||'up';
+document.getElementById('btnRoundDown').classList.toggle('active',_r==='down');
+document.getElementById('btnRoundUp').classList.toggle('active',  _r==='up');
+const _m=S.multiple||10;
+document.querySelectorAll('.mult-btn').forEach(b=>{
+  b.classList.toggle('active', parseInt(b.dataset.val)===_m);
+});
 renderAll();
 </script>
 </body>
